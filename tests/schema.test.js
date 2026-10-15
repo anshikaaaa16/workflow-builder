@@ -38,7 +38,7 @@ test('the bundled sample workflow is valid', async () => {
   const result = importGraph(text);
   assert.equal(result.ok, true, result.errors.join('\n'));
   assert.equal(result.graph.nodes.length, 6);
-  assert.equal(result.graph.edges.length, 7);
+  assert.equal(result.graph.edges.length, 8);
 });
 
 test('rejects text that is not JSON', () => {

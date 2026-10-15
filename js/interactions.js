@@ -1,7 +1,7 @@
 import { createNode, NODE_TYPES } from './catalog.js';
 import { AddEdge, AddNode, DeleteSelection, MoveNodes } from './commands.js';
 import { findNode, findPort, portKey } from './graph.js';
-import { NODE_WIDTH, graphBounds } from './geometry.js';
+import { NODE_WIDTH, graphBounds, nodeBox } from './geometry.js';
 import { canConnect } from './rules.js';
 import { clamp, snap, uid } from './utils.js';
 
@@ -226,6 +226,22 @@ export function setupInteractions(editor, svg, wrap, { toast }) {
     editor.emit('view');
   }
 
+  function focusNode(nodeId) {
+    const node = findNode(editor.graph, nodeId);
+    if (!node) return;
+    const rect = svg.getBoundingClientRect();
+    const box = nodeBox(node);
+    const { k } = ui.view;
+    ui.view = {
+      k,
+      x: rect.width / 2 - ((box.left + box.right) / 2) * k,
+      y: rect.height / 2 - ((box.top + box.bottom) / 2) * k,
+    };
+    ui.selectedNodes = new Set([nodeId]);
+    ui.selectedEdge = null;
+    editor.emit('ui');
+  }
+
   function addNodeAt(type, point) {
     const position = { x: snap(point.x - NODE_WIDTH / 2), y: snap(point.y - 20) };
     while (editor.graph.nodes.some((n) => n.position.x === position.x && n.position.y === position.y)) {
@@ -332,5 +348,5 @@ export function setupInteractions(editor, svg, wrap, { toast }) {
     svg.classList.remove('space-pan');
   });
 
-  return { addNodeAt, viewCenter, fitView, zoomCenter, resetZoom, deleteSelection, undo, redo };
+  return { addNodeAt, viewCenter, fitView, focusNode, zoomCenter, resetZoom, deleteSelection, undo, redo };
 }

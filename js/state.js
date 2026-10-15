@@ -12,6 +12,7 @@ export function createEditor(graph = createEmptyGraph()) {
       view: { x: 0, y: 0, k: 1 },
       connecting: null,
       hoverPort: null,
+      issues: [],
     },
 
     subscribe(listener) {
@@ -27,10 +28,12 @@ export function createEditor(graph = createEmptyGraph()) {
       editor.history.execute(command);
     },
 
-    load(next) {
+    load(next, stacks) {
       replaceContents(editor.graph, next);
       editor.clearSelection();
-      editor.history.clear();
+      editor.ui.connecting = null;
+      editor.ui.hoverPort = null;
+      editor.history.restore(stacks);
     },
 
     clearSelection() {

@@ -68,7 +68,7 @@ export function setupPalette(container, actions) {
   });
 }
 
-export function setupToolbar(editor, els, actions) {
+export function setupToolbar(editor, els, actions, { renameWorkflow, toast }) {
   els.undo.addEventListener('click', actions.undo);
   els.redo.addEventListener('click', actions.redo);
   els.routing.addEventListener('change', () => {
@@ -76,10 +76,9 @@ export function setupToolbar(editor, els, actions) {
     if (to !== editor.graph.routing) editor.run(new SetRouting(editor.graph.routing, to));
   });
   els.name.addEventListener('change', () => {
-    const name = els.name.value.trim();
-    if (name) editor.graph.name = name;
+    const result = renameWorkflow(els.name.value);
+    if (!result.ok) toast(result.reason, 'error');
     els.name.value = editor.graph.name;
-    editor.emit('meta');
   });
   els.name.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') els.name.blur();
@@ -304,4 +303,71 @@ export function setupJsonDialog(editor, els, { toast, applyImport }) {
   });
 
   return { open };
+}
+
+function plural(count, word) {
+  return `${count} ${word}${count === 1 ? '' : 's'}`;
+}
+
+export function setupWorkflowList(editor, els, library, handlers) {
+  els.create.addEventListener('click', handlers.create);
+  els.duplicate.addEventListener('click', handlers.duplicate);
+  els.remove.addEventListener('click', handlers.remove);
+
+  return function update() {
+    els.count.textContent = String(library.items.length);
+    const items = library.items.map((item) => {
+      const active = item.id === library.activeId;
+      const nodes = active ? editor.graph.nodes.length : item.data.nodes.length;
+      const edges = active ? editor.graph.edges.length : item.data.edges.length;
+      const name = active ? editor.graph.name : item.name;
+      return h('li', {},
+        h('button', {
+          type: 'button',
+          class: `workflow-item${active ? ' active' : ''}`,
+          'aria-current': active ? 'true' : null,
+          title: active ? 'Current workflow' : `Switch to "${name}"`,
+          onClick: () => handlers.open(item.id),
+        },
+        h('strong', {}, name),
+        h('small', {}, `${plural(nodes, 'node')} · ${plural(edges, 'wire')}`)));
+    });
+    els.list.replaceChildren(...items);
+  };
+}
+
+export function setupProblemsPanel(editor, els, { focusNode }) {
+  els.chip.addEventListener('click', () => {
+    els.panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    els.panel.classList.remove('flash');
+    void els.panel.offsetWidth;
+    els.panel.classList.add('flash');
+  });
+
+  return function update() {
+    const issues = editor.ui.issues;
+    const errors = issues.filter((i) => i.level === 'error').length;
+    const warnings = issues.length - errors;
+
+    els.count.textContent = issues.length ? `${errors} errors · ${warnings} warnings` : '';
+    els.chip.className = `status-chip ${errors ? 'error' : warnings ? 'warn' : 'ok'}`;
+    if (!editor.graph.nodes.length) els.chip.textContent = 'Empty workflow';
+    else if (!issues.length) els.chip.textContent = '✓ Valid';
+    else els.chip.textContent = [errors && plural(errors, 'error'), warnings && plural(warnings, 'warning')].filter(Boolean).join(' · ');
+
+    if (!issues.length) {
+      const text = editor.graph.nodes.length ? 'No problems found. This workflow is ready to run.' : 'Add some nodes to get started.';
+      els.list.replaceChildren(h('li', {}, h('p', { class: 'problems-empty' }, text)));
+      return;
+    }
+
+    els.list.replaceChildren(...issues.map((issue) => h('li', { class: issue.level },
+      h('button', {
+        type: 'button',
+        title: issue.nodeId ? 'Show this node' : '',
+        onClick: () => issue.nodeId && focusNode(issue.nodeId),
+      },
+      h('span', { class: 'icon', 'aria-label': issue.level }, '!'),
+      h('span', {}, issue.message)))));
+  };
 }

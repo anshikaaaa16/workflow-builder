@@ -12,6 +12,7 @@ import {
 import { truncate } from './utils.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+const FLOW_SECONDS = 1;
 
 function svgEl(tag, attrs = {}, parent = null) {
   const el = document.createElementNS(SVG_NS, tag);
@@ -48,6 +49,11 @@ function buildNode(node) {
   svgText(g, { class: 'node-title', x: 26, y: HEADER_HEIGHT / 2 + 4.5 }, truncate(node.label, 18));
   svgText(g, { class: 'node-tag', x: NODE_WIDTH - 12, y: HEADER_HEIGHT / 2 + 3.5, 'text-anchor': 'end' }, def.category.toUpperCase());
   svgEl('rect', { class: 'node-outline', width: NODE_WIDTH, height, rx: r }, g);
+
+  const badge = svgEl('g', { class: 'node-badge', transform: `translate(${NODE_WIDTH - 2} 2)` }, g);
+  svgEl('title', {}, badge);
+  svgEl('circle', { r: 8 }, badge);
+  svgText(badge, { y: 4, 'text-anchor': 'middle' }, '!');
 
   node.ports.forEach((port) => {
     const offset = portOffset(node, port);
@@ -114,15 +120,18 @@ export function createRenderer(editor, svg, hint) {
 
   function renderEdges() {
     const { graph, ui } = editor;
+    const flowDelay = -((performance.now() / 1000) % FLOW_SECONDS).toFixed(3);
     edgesLayer.replaceChildren();
     graph.edges.forEach((edge) => {
       const d = edgePath(graph, edge);
       const source = findPort(graph, edge.source);
       if (!d || !source) return;
-      const selected = ui.selectedEdge === edge.id ? ' selected' : '';
-      const g = svgEl('g', { class: `edge type-${source.port.dataType}${selected}`, 'data-edge-id': edge.id }, edgesLayer);
+      const type = source.port.dataType;
+      const selected = ui.selectedEdge === edge.id;
+      const g = svgEl('g', { class: `edge type-${type}${selected ? ' selected' : ''}`, 'data-edge-id': edge.id }, edgesLayer);
       svgEl('path', { class: 'edge-hit', d }, g);
-      svgEl('path', { class: 'edge-line', d }, g);
+      svgEl('path', { class: 'edge-line', d, 'marker-end': `url(#arrow-${selected ? 'selected' : type})` }, g);
+      svgEl('path', { class: 'edge-flow', d, style: `animation-delay: ${flowDelay}s` }, g);
     });
   }
 
@@ -185,6 +194,29 @@ export function createRenderer(editor, svg, hint) {
     });
   }
 
+  function markIssues() {
+    const byNode = new Map();
+    const missingPorts = new Set();
+    editor.ui.issues.forEach((issue) => {
+      if (!issue.nodeId) return;
+      if (!byNode.has(issue.nodeId)) byNode.set(issue.nodeId, []);
+      byNode.get(issue.nodeId).push(issue);
+      if (issue.portId && issue.level === 'error') missingPorts.add(`${issue.nodeId}::${issue.portId}`);
+    });
+
+    nodeEls.forEach(({ el }, id) => {
+      const issues = byNode.get(id) || [];
+      const hasError = issues.some((i) => i.level === 'error');
+      el.classList.toggle('has-error', hasError);
+      el.classList.toggle('has-warning', !hasError && issues.length > 0);
+      el.querySelector('.node-badge title').textContent = issues.map((i) => i.message).join('\n');
+    });
+
+    nodesLayer.querySelectorAll('.port').forEach((el) => {
+      el.classList.toggle('missing', missingPorts.has(`${el.dataset.nodeId}::${el.dataset.portId}`));
+    });
+  }
+
   function render() {
     const { x, y, k } = editor.ui.view;
     const transform = `translate(${x} ${y}) scale(${k})`;
@@ -194,6 +226,7 @@ export function createRenderer(editor, svg, hint) {
     renderEdges();
     renderDraft();
     markPorts();
+    markIssues();
   }
 
   return { render };

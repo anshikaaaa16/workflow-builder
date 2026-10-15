@@ -19,7 +19,7 @@ You need **Node.js 18 or newer**.
 npm start
 ```
 
-Then open **http://localhost:3000**. There's nothing to install: `npm start` runs a small static server
+Then open **http://localhost:4000**. There's nothing to install: `npm start` runs a small static server
 (`server.js`) that uses Node's built-in modules.
 
 > You can't open `index.html` by double-clicking it, because browsers block ES modules on `file://`.
@@ -38,7 +38,30 @@ npm test
 | Dynamic Bezier / orthogonal connectors | `js/geometry.js` | Wires are recalculated from node positions on every frame while you drag. The **Wires** dropdown switches between curved and right-angle routing. Right-angle wires detour around their source and target nodes when the target is behind the source. |
 | Port matching rules | `js/rules.js` | Ports are typed: **Trigger**, **Flow** or **Data**. While you drag a wire, valid targets glow green and the rest fade. An invalid drop shows the reason. |
 | Undo / redo (time travel) | `js/commands.js`, `js/history.js` | Every change is a command object with `do()` and `undo()`. **Ctrl+Z**, **Ctrl+Y** and **Ctrl+Shift+Z** work, and you can click any entry in the History panel to jump there. |
-| Export / import JSON | `js/schema.js` | **Export** downloads a `.json` file, **Import** loads one, and **JSON** opens an editor where you can view, paste or edit the raw JSON. Imports are fully validated and can be undone. |
+| Export / import JSON | `js/schema.js` | **Export** downloads a `.json` file. **Import** opens a `.json` file as a new workflow. **JSON** opens an editor where you can view, paste or edit the raw JSON and load it into the current workflow, which can be undone. Every import is fully validated first. |
+
+### Added features
+
+| Feature | Where | How |
+|---|---|---|
+| Multiple workflows | `js/library.js`, `js/main.js` | The **Workflows** list on the left shows every saved workflow. Click one to switch, or use **+ New**, **Duplicate** and **Delete**. Each workflow keeps its own undo history and zoom position while the app is open. Workflow names must be unique, non-empty and at most 60 characters. All workflows are saved in `localStorage`. |
+| Data-flow animation | `js/render.js`, `styles.css` | Dots travel along every wire from output to input, and each wire ends in an arrowhead coloured by its port type, so the direction is clear even with animation off. **Animate flow** in the toolbar turns the dots on or off. The setting is remembered, and it starts off if the operating system asks for reduced motion. |
+| Workflow validation | `js/validate.js` | The workflow is checked after every change. The toolbar chip shows **✓ Valid** or a count of problems, and the **Problems** panel lists each one. Click a problem to jump to its node. Nodes with problems get a red or amber badge, and unconnected required ports pulse red. |
+
+Validation checks:
+
+| Level | Problem |
+|---|---|
+| Error | No trigger node in the workflow |
+| Error | A node's Run input isn't connected, so it's never told to run |
+| Error | A Data input isn't connected (each Data input is required) |
+| Warning | A node isn't connected to anything |
+| Warning | A node can't be reached from any trigger |
+| Warning | A trigger doesn't start anything |
+| Warning | A Merge with only one branch, or a Condition with no branches connected |
+| Warning | Two nodes share the same name |
+
+Problems don't block editing or exporting. Exporting a workflow with errors shows a reminder.
 
 Extras:
 - snap-to-grid, which you can turn off by holding **Alt** while dragging
@@ -75,7 +98,7 @@ The app also rejects:
 - remove port, including its wires
 - rename node
 - switch routing mode
-- import, load sample and clear canvas
+- load JSON into the current workflow, and clear canvas
 
 Dragging records **one** history entry when you release the mouse, not one per pixel.
 
@@ -151,9 +174,11 @@ js/geometry.js      node sizes, port positions, Bezier + orthogonal routing
 js/commands.js      the undoable commands
 js/history.js       undo/redo stacks
 js/schema.js        JSON export/import + validation
+js/validate.js      workflow problems (errors and warnings)
+js/library.js       saved workflows: add, switch, rename, delete
 js/render.js        draws nodes and wires as SVG
 js/interactions.js  mouse, keyboard, pan/zoom, drag-and-drop
-js/ui.js            palette, toolbar, inspector, history list, JSON dialog, toasts
+js/ui.js            workflow list, palette, toolbar, inspector, problems, history, JSON dialog, toasts
 samples/sample.json example workflow
 tests/              unit tests (node --test)
 docs/WALKTHROUGH.md how the code works, file by file
@@ -166,7 +191,8 @@ See [`docs/WALKTHROUGH.md`](docs/WALKTHROUGH.md) for a detailed explanation of t
 - Workflows are directed and acyclic: a wire can never make a loop. That's what most workflow engines
   expect, and it keeps execution order well-defined.
 - Node types come from a fixed catalog. Users can add or remove ports on any node, but the port rules still apply.
-- The workflow name isn't part of undo history. It's a document setting, not a canvas change.
+- Workflow names, and creating, switching or deleting workflows, are not part of undo history. They manage documents, not canvas changes. Deleting a workflow asks for confirmation instead.
+- Undo history lives in memory, so it resets when the page reloads. The workflows themselves are saved.
 - The app targets desktop browsers (latest Chrome, Edge, Firefox or Safari).
 
 ## Use of AI tools

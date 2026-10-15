@@ -399,6 +399,96 @@ won't load ES modules from `file://`.
 
 ---
 
+## 2b. The added features
+
+### Multiple workflows: `js/library.js` + `main.js`
+
+`WorkflowLibrary` is a plain class that holds every saved workflow:
+
+```js
+{ activeId: 'wf_ab12', items: [{ id, name, updatedAt, data }] }
+```
+
+`data` is the same exported JSON as the **Export** button produces, so every saved workflow can be checked
+with `importGraph` when it's loaded back. A broken entry is skipped instead of crashing the app.
+
+| Method | What it does |
+|---|---|
+| `add(graph)` | Stores a new workflow and gives it a unique name ("Onboarding", "Onboarding 2", …) |
+| `save(id, graph)` | Overwrites a workflow with the current graph |
+| `load(id)` | Returns a graph ready for the editor |
+| `remove(id)` | Deletes a workflow and picks the next one to show. If none are left, it creates an empty one so the app always has something open |
+| `fromJSON` / `toJSON` | Read and write the library in `localStorage` |
+
+`checkWorkflowName(name, items)` validates names: they must be non-empty, at most 60 characters, and unique
+regardless of upper/lower case.
+
+**Switching** (`openWorkflow` in `main.js`):
+
+1. Save the current graph into the library.
+2. Remember the current undo/redo stacks and zoom in a `sessions` Map, keyed by workflow id.
+3. Load the other workflow into the *same* editor object with `editor.load(graph, stacks)`.
+4. If that workflow was opened before in this visit, its old undo stacks and zoom come back. That's why
+   Ctrl+Z still works after switching away and back.
+
+The undo stacks can be reused because commands only refer to nodes and wires **by id**, never by object
+reference, so they work on a freshly loaded copy of the same graph.
+
+### Data-flow animation: `render.js` + `styles.css`
+
+Each wire is now drawn as three paths with the same `d`:
+
+| Path | Purpose |
+|---|---|
+| `.edge-hit` | Invisible and 14px wide, so the wire is easy to click |
+| `.edge-line` | The visible wire, with `marker-end` pointing to an arrowhead `<marker>` in `<defs>` |
+| `.edge-flow` | Moving dots |
+
+The dots are a CSS trick. `stroke-dasharray: 0.1 16` with round line caps turns the stroke into a row of
+dots 16px apart. Animating `stroke-dashoffset` from 16 down to 0 slides the pattern towards the **end** of
+the path. Every path is drawn from output to input, so the dots always travel in the direction data flows.
+
+Wires are rebuilt on every render, which would restart the animation and make the dots jump. To prevent
+that, each new path gets a negative `animation-delay` equal to the current time modulo the animation length.
+The animation then continues seamlessly from where it was.
+
+The arrowhead `<marker>` has `refX` set so its tip stops just before the input port instead of hiding under
+it. There's one marker per port type, so its colour matches the wire. The **Animate flow** checkbox toggles
+a class on the `<svg>`, and the CSS only animates when that class is present. A
+`prefers-reduced-motion` media query switches the animation off for people who've asked their system for
+less motion.
+
+### Validation: `js/validate.js`
+
+`validateGraph(graph)` is a pure function. It returns a list of issues like this:
+
+```js
+{ level: 'error' | 'warning', message: '"Send Email" needs data on its "Body" input.', nodeId, portId }
+```
+
+It works in three steps:
+
+1. Builds a `Set` of every connected port, so "is this port connected?" is a quick lookup.
+2. Finds every node reachable from a trigger, using the same kind of depth-first search as the cycle check
+   in `rules.js`.
+3. Goes through each node and applies the checks listed in the README: missing trigger, Run input not
+   connected, required Data input empty, unreachable, unconnected, and so on. Errors are sorted before warnings.
+
+**Rules vs validation:** `rules.js` *prevents* illegal actions, for example a wire that makes a loop. That
+can never happen. `validate.js` *reports* things that are allowed while you're building but mean the
+workflow isn't finished yet, like a node you haven't wired up. You can't connect every wire at the same
+moment you add a node, so blocking those situations would make the editor impossible to use.
+
+`main.js` re-runs validation after every graph change and stores the result in `editor.ui.issues`. Then:
+
+- the renderer adds `has-error` / `has-warning` classes, a "!" badge with the messages as a tooltip, and a
+  pulsing red ring on each missing port
+- the Problems panel lists the issues, and clicking one calls `focusNode`, which centres the view on that
+  node and selects it
+- the toolbar chip shows "✓ Valid" or the counts
+
+---
+
 ## 3. Tests (`tests/`)
 
 Run them with `npm test`. That uses Node's built-in test runner, so there's nothing to install. The tests
@@ -428,6 +518,16 @@ cover only the pure logic, which has no DOM:
   - orthogonal wires only go horizontal or vertical
   - backward routes really go around both node boxes
   - rounded corners and point simplification
+- **validate.test.js:**
+  - an empty workflow and the sample workflow have no problems
+  - each kind of error and warning is detected
+  - errors come first
+- **library.test.js:**
+  - unique naming
+  - save and load
+  - deleting picks a neighbour, and deleting the last one leaves an empty workflow
+  - broken or duplicate saved entries are skipped
+  - name validation
 
 ---
 
@@ -444,8 +544,14 @@ cover only the pure logic, which has no DOM:
 6. Add a Delay from the palette. Connect it, rename it in the inspector, and add a port.
 7. Select "Format welcome" and press Delete. Its wires disappear too. Press **Ctrl+Z** and everything comes
    back. Click an early entry in the History panel to time-travel, then press **Ctrl+Y**.
-8. Click **Export** and open the file to show the clean schema. Click **Clear**, then **Import** the file. Open
-   **JSON**, break an edge on purpose, and show the validation errors.
+8. Click **Export** and open the file to show the clean schema. Click **Import** to open the file as a new
+   workflow. Open **JSON**, break an edge on purpose, and show the validation errors.
+9. Point out the dots moving from output to input. Toggle **Animate flow** off: the arrowheads still show the
+   direction.
+10. Delete the wire into **Send welcome email › Body**. The chip turns red, the node gets a badge, and the
+    port pulses. Click the problem in the Problems panel to jump to it, then press **Ctrl+Z**.
+11. Click **+ New**, add a node, and switch back to the first workflow. Its undo history is still there.
+    Then try to rename the new workflow to the same name as the first one, which is refused.
 
 ---
 
@@ -475,6 +581,19 @@ the source. If it can, the new wire would close a loop.
 **How is import kept safe?**
 Imported data goes through the same `canAddPort` and `canConnect` rules the UI uses. It's built edge by
 edge into a fresh graph. Any error means nothing is loaded and every error is shown.
+
+**How do the animated dots know which way to move?**
+Every wire's path is drawn from the output port to the input port. The dots are a dashed stroke whose
+offset is animated towards the end of the path, so they always move from output to input.
+
+**What's the difference between port rules and validation?**
+Port rules block actions that are never allowed, like making a loop. Validation reports unfinished work,
+like an empty required input. That has to be allowed while you build, but it means the workflow isn't
+ready to run yet.
+
+**How does undo survive switching workflows?**
+Each workflow's undo and redo stacks are kept in memory, keyed by its id. Commands refer to nodes only by
+id, so the same commands work on the freshly reloaded graph when you switch back.
 
 **What would you add next?**
 - Routing that avoids *all* nodes, not just the two endpoints. That would be A* on a grid or a

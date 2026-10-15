@@ -78,6 +78,7 @@
     { "id": "e4", "source": { "nodeId": "is-business", "portId": "out-true" }, "target": { "nodeId": "wait", "portId": "in-run" } },
     { "id": "e5", "source": { "nodeId": "is-business", "portId": "out-false" }, "target": { "nodeId": "welcome", "portId": "in-run" } },
     { "id": "e6", "source": { "nodeId": "format", "portId": "out-output" }, "target": { "nodeId": "welcome", "portId": "in-body" } },
-    { "id": "e7", "source": { "nodeId": "wait", "portId": "out-then" }, "target": { "nodeId": "crm", "portId": "in-run" } }
+    { "id": "e7", "source": { "nodeId": "wait", "portId": "out-then" }, "target": { "nodeId": "crm", "portId": "in-run" } },
+    { "id": "e8", "source": { "nodeId": "signup", "portId": "out-body" }, "target": { "nodeId": "crm", "portId": "in-url" } }
   ]
 }

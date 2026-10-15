@@ -816,3 +816,259 @@ kbd {
     display: none;
   }
 }
+
+:root {
+  --warn: #c98a06;
+  --flow-dot: rgba(255, 255, 255, 0.95);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --warn: #f0b429;
+    --flow-dot: rgba(255, 255, 255, 0.9);
+  }
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle input {
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+.status-chip {
+  font-weight: 600;
+  border-radius: 14px;
+  padding: 4px 12px;
+}
+
+.status-chip.ok {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 45%, var(--border));
+}
+
+.status-chip.warn {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--border));
+}
+
+.status-chip.error {
+  color: var(--bad);
+  border-color: color-mix(in srgb, var(--bad) 45%, var(--border));
+}
+
+.workflow-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.workflow-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  background: none;
+  padding: 6px 9px;
+  margin-bottom: 2px;
+  white-space: normal;
+}
+
+.workflow-item strong {
+  display: block;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-item small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.workflow-item.active {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.workflow-item.active strong {
+  color: var(--accent);
+}
+
+.workflow-actions {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.workflow-actions button {
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 13px;
+}
+
+.problems-panel {
+  max-height: 34vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.problems-panel.flash {
+  animation: panel-flash 0.9s ease-out;
+}
+
+@keyframes panel-flash {
+  from {
+    background: var(--accent-soft);
+  }
+}
+
+.problems-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+}
+
+.problems-list button {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 5px 6px;
+  white-space: normal;
+  font-size: 13px;
+}
+
+.problems-list .icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  margin-top: 1px;
+}
+
+.problems-list .error .icon {
+  background: var(--bad);
+}
+
+.problems-list .warning .icon {
+  background: var(--warn);
+}
+
+.problems-empty {
+  color: var(--ok);
+  font-size: 13px;
+  margin: 0;
+}
+
+.node-badge {
+  display: none;
+  pointer-events: all;
+}
+
+.node-badge circle {
+  stroke: var(--node-bg);
+  stroke-width: 2;
+}
+
+.node-badge text {
+  fill: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.node.has-error .node-badge,
+.node.has-warning .node-badge {
+  display: inline;
+}
+
+.node.has-warning .node-badge circle {
+  fill: var(--warn);
+}
+
+.node.has-error .node-badge circle {
+  fill: var(--bad);
+}
+
+.node.has-error:not(.selected) .node-outline {
+  stroke: color-mix(in srgb, var(--bad) 70%, var(--node-border));
+  stroke-dasharray: 5 4;
+}
+
+.port.missing .port-shape {
+  stroke: var(--bad);
+  animation: port-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes port-pulse {
+  50% {
+    stroke-width: 3.5;
+  }
+}
+
+.arrow path {
+  fill: var(--type-flow);
+}
+
+.arrow.type-trigger path { fill: var(--type-trigger); }
+.arrow.type-data path { fill: var(--type-data); }
+.arrow.selected path { fill: var(--accent); }
+
+.edge-flow {
+  display: none;
+  fill: none;
+  stroke: var(--flow-dot);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-dasharray: 0.1 16;
+  pointer-events: none;
+}
+
+#canvas.animate-flow .edge-flow {
+  display: inline;
+  animation: wire-flow 1s linear infinite;
+}
+
+#canvas.animate-flow .edge.type-data .edge-line {
+  stroke-dasharray: none;
+}
+
+#canvas.animate-flow .edge.selected .edge-flow {
+  stroke-width: 3.2;
+}
+
+@keyframes wire-flow {
+  from {
+    stroke-dashoffset: 16.1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #canvas.animate-flow .edge-flow,
+  .port.missing .port-shape {
+    animation: none;
+  }
+}

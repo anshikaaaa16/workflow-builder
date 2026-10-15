@@ -56,8 +56,16 @@ export class History {
   }
 
   clear() {
-    this.done = [];
-    this.undone = [];
+    this.restore();
+  }
+
+  restore({ done = [], undone = [] } = {}) {
+    this.done = [...done];
+    this.undone = [...undone];
     this.onChange();
+  }
+
+  snapshot() {
+    return { done: [...this.done], undone: [...this.undone] };
   }
 }
