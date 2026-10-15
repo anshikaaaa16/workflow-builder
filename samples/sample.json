@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "meta": {
+    "name": "New signup onboarding",
+    "routing": "bezier"
+  },
+  "nodes": [
+    {
+      "id": "signup",
+      "type": "webhook",
+      "label": "New signup",
+      "position": { "x": 40, "y": 160 },
+      "ports": [
+        { "id": "out-fired", "name": "On request", "direction": "out", "dataType": "trigger", "maxConnections": null },
+        { "id": "out-body", "name": "Payload", "direction": "out", "dataType": "data", "maxConnections": null }
+      ]
+    },
+    {
+      "id": "is-business",
+      "type": "condition",
+      "label": "Business email?",
+      "position": { "x": 340, "y": 40 },
+      "ports": [
+        { "id": "in-run", "name": "Run", "direction": "in", "dataType": "flow", "maxConnections": null },
+        { "id": "in-value", "name": "Value", "direction": "in", "dataType": "data", "maxConnections": 1 },
+        { "id": "out-true", "name": "True", "direction": "out", "dataType": "flow", "maxConnections": null },
+        { "id": "out-false", "name": "False", "direction": "out", "dataType": "flow", "maxConnections": null }
+      ]
+    },
+    {
+      "id": "format",
+      "type": "transform",
+      "label": "Format welcome",
+      "position": { "x": 340, "y": 260 },
+      "ports": [
+        { "id": "in-input", "name": "Input", "direction": "in", "dataType": "data", "maxConnections": 1 },
+        { "id": "out-output", "name": "Output", "direction": "out", "dataType": "data", "maxConnections": null }
+      ]
+    },
+    {
+      "id": "welcome",
+      "type": "email",
+      "label": "Send welcome email",
+      "position": { "x": 640, "y": 160 },
+      "ports": [
+        { "id": "in-run", "name": "Run", "direction": "in", "dataType": "flow", "maxConnections": null },
+        { "id": "in-body", "name": "Body", "direction": "in", "dataType": "data", "maxConnections": 1 },
+        { "id": "out-sent", "name": "Sent", "direction": "out", "dataType": "flow", "maxConnections": null }
+      ]
+    },
+    {
+      "id": "wait",
+      "type": "delay",
+      "label": "Wait 1 day",
+      "position": { "x": 640, "y": 20 },
+      "ports": [
+        { "id": "in-run", "name": "Run", "direction": "in", "dataType": "flow", "maxConnections": null },
+        { "id": "out-then", "name": "Then", "direction": "out", "dataType": "flow", "maxConnections": null }
+      ]
+    },
+    {
+      "id": "crm",
+      "type": "http",
+      "label": "Notify sales CRM",
+      "position": { "x": 940, "y": 60 },
+      "ports": [
+        { "id": "in-run", "name": "Run", "direction": "in", "dataType": "flow", "maxConnections": null },
+        { "id": "in-url", "name": "URL", "direction": "in", "dataType": "data", "maxConnections": 1 },
+        { "id": "out-done", "name": "Done", "direction": "out", "dataType": "flow", "maxConnections": null },
+        { "id": "out-response", "name": "Response", "direction": "out", "dataType": "data", "maxConnections": null }
+      ]
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": { "nodeId": "signup", "portId": "out-fired" }, "target": { "nodeId": "is-business", "portId": "in-run" } },
+    { "id": "e2", "source": { "nodeId": "signup", "portId": "out-body" }, "target": { "nodeId": "is-business", "portId": "in-value" } },
+    { "id": "e3", "source": { "nodeId": "signup", "portId": "out-body" }, "target": { "nodeId": "format", "portId": "in-input" } },
+    { "id": "e4", "source": { "nodeId": "is-business", "portId": "out-true" }, "target": { "nodeId": "wait", "portId": "in-run" } },
+    { "id": "e5", "source": { "nodeId": "is-business", "portId": "out-false" }, "target": { "nodeId": "welcome", "portId": "in-run" } },
+    { "id": "e6", "source": { "nodeId": "format", "portId": "out-output" }, "target": { "nodeId": "welcome", "portId": "in-body" } },
+    { "id": "e7", "source": { "nodeId": "wait", "portId": "out-then" }, "target": { "nodeId": "crm", "portId": "in-run" } }
+  ]
+}

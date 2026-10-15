@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workflow Builder</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="toolbar">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+        <rect x="2" y="4" width="8" height="6" rx="2"></rect>
+        <rect x="14" y="14" width="8" height="6" rx="2"></rect>
+        <path d="M10 7 C 14 7, 10 17, 14 17"></path>
+      </svg>
+      <span>Workflow Builder</span>
+    </div>
+
+    <input id="wf-name" class="name-input" type="text" aria-label="Workflow name" spellcheck="false">
+
+    <div class="tool-group">
+      <button id="btn-undo" type="button" title="Undo (Ctrl+Z)">↶ Undo</button>
+      <button id="btn-redo" type="button" title="Redo (Ctrl+Y)">↷ Redo</button>
+    </div>
+
+    <div class="tool-group">
+      <label class="select-label">
+        Wires
+        <select id="routing">
+          <option value="bezier">Curved (Bezier)</option>
+          <option value="orthogonal">Right-angle (Orthogonal)</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="tool-group">
+      <button id="btn-export" type="button" title="Download the workflow as a .json file">Export</button>
+      <button id="btn-import" type="button" title="Load a workflow from a .json file">Import</button>
+      <button id="btn-json" type="button" title="View, edit or paste raw JSON">JSON</button>
+    </div>
+
+    <div class="tool-group">
+      <button id="btn-sample" type="button">Load sample</button>
+      <button id="btn-clear" type="button" class="danger-text">Clear</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="palette" aria-label="Node palette">
+      <h2>Nodes</h2>
+      <p class="hint">Drag onto the canvas, or click to add.</p>
+      <div id="palette"></div>
+      <h2>Port types</h2>
+      <ul class="legend">
+        <li><span class="port-icon type-trigger"></span>Trigger <small>→ Flow</small></li>
+        <li><span class="port-icon type-flow"></span>Flow <small>→ Flow</small></li>
+        <li><span class="port-icon type-data"></span>Data <small>→ Data</small></li>
+      </ul>
+    </aside>
+
+    <section class="canvas-wrap" id="canvas-wrap">
+      <svg id="canvas" tabindex="0" aria-label="Workflow canvas">
+        <defs>
+          <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="0" cy="0" r="1.1" class="grid-dot"></circle>
+            <circle cx="20" cy="0" r="1.1" class="grid-dot"></circle>
+            <circle cx="0" cy="20" r="1.1" class="grid-dot"></circle>
+            <circle cx="20" cy="20" r="1.1" class="grid-dot"></circle>
+          </pattern>
+        </defs>
+        <rect class="grid-bg" width="100%" height="100%" fill="url(#grid)"></rect>
+        <g id="viewport">
+          <g id="edges"></g>
+          <g id="nodes"></g>
+          <path id="draft" class="draft"></path>
+        </g>
+      </svg>
+      <div id="wire-hint" class="wire-hint" hidden></div>
+      <div class="canvas-controls">
+        <button id="btn-zoom-out" type="button" title="Zoom out">−</button>
+        <button id="btn-zoom" type="button" title="Reset zoom to 100%">100%</button>
+        <button id="btn-zoom-in" type="button" title="Zoom in">+</button>
+        <button id="btn-fit" type="button" title="Fit workflow to screen">Fit</button>
+      </div>
+      <div id="empty-state" class="empty-state" hidden>
+        <strong>Your canvas is empty</strong>
+        <span>Drag a node from the left, or click “Load sample”.</span>
+      </div>
+    </section>
+
+    <aside class="sidebar">
+      <section id="inspector" class="panel" aria-label="Inspector"></section>
+      <section class="panel history-panel" aria-label="History">
+        <div class="panel-head">
+          <h2>History</h2>
+          <span id="history-count" class="muted"></span>
+        </div>
+        <ol id="history-list" class="history-list"></ol>
+      </section>
+    </aside>
+  </main>
+
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+
+  <dialog id="json-dialog" class="json-dialog">
+    <form method="dialog" class="dialog-body">
+      <div class="panel-head">
+        <h2>Workflow JSON</h2>
+        <button value="close" class="icon-button" aria-label="Close">✕</button>
+      </div>
+      <p class="muted">This is the current workflow. Edit it or paste your own, then click “Load into canvas”.</p>
+      <textarea id="json-text" spellcheck="false"></textarea>
+      <ul id="json-errors" class="errors" hidden></ul>
+      <div class="dialog-actions">
+        <button type="button" id="json-copy">Copy</button>
+        <button type="button" id="json-download">Download</button>
+        <span class="spacer"></span>
+        <button value="close">Cancel</button>
+        <button type="button" id="json-load" class="primary">Load into canvas</button>
+      </div>
+    </form>
+  </dialog>
+
+  <input type="file" id="file-input" accept=".json,application/json" hidden>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

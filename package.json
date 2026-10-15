@@ -1,0 +1,14 @@
+{
+  "name": "workflow-builder",
+  "version": "1.0.0",
+  "description": "Visual workflow builder with custom connector routing, port rules, undo/redo and JSON import/export. Plain HTML/CSS/JS, no dependencies.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
