@@ -181,10 +181,7 @@ js/interactions.js  mouse, keyboard, pan/zoom, drag-and-drop
 js/ui.js            workflow list, palette, toolbar, inspector, problems, history, JSON dialog, toasts
 samples/sample.json example workflow
 tests/              unit tests (node --test)
-docs/WALKTHROUGH.md how the code works, file by file
 ```
-
-See [`docs/WALKTHROUGH.md`](docs/WALKTHROUGH.md) for a detailed explanation of the design.
 
 ## Assumptions
 
