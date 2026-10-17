@@ -534,6 +534,7 @@ h3 {
 }
 
 .panel {
+  flex-shrink: 0;
   padding: 14px;
   border-bottom: 1px solid var(--border);
 }
@@ -663,8 +664,8 @@ kbd {
 }
 
 .history-panel {
-  flex: 1;
-  min-height: 0;
+  flex: 1 0 auto;
+  min-height: 220px;
   display: flex;
   flex-direction: column;
   border-bottom: none;
@@ -675,7 +676,7 @@ kbd {
   margin: 0;
   padding: 0;
   overflow-y: auto;
-  flex: 1;
+  max-height: 45vh;
 }
 
 .history-list button {
