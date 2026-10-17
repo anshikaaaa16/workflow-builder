@@ -16,11 +16,13 @@ import {
   setupToolbar,
   setupWorkflowList,
 } from './ui.js';
+import { retry } from './utils.js';
 import { summarizeIssues, validateGraph } from './validate.js';
 
 const LIBRARY_KEY = 'workflow-builder.library.v1';
 const LEGACY_KEY = 'workflow-builder.autosave.v1';
 const PREFS_KEY = 'workflow-builder.prefs.v1';
+const RETRY_ATTEMPTS = 5;
 const $ = (id) => document.getElementById(id);
 
 function readJson(key) {
@@ -33,12 +35,7 @@ function readJson(key) {
 }
 
 function writeJson(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    return false;
-  }
-  return true;
+  localStorage.setItem(key, JSON.stringify(value));
 }
 
 const editor = createEditor();
@@ -48,11 +45,43 @@ const { render } = createRenderer(editor, svg, $('wire-hint'));
 const actions = setupInteractions(editor, svg, $('canvas-wrap'), { toast });
 const sessions = new Map();
 let library = null;
+let saveQueued = false;
+let saving = false;
+
+function errorText(error) {
+  return error?.cause?.message || error?.message || String(error);
+}
+
+function retryNotice(action) {
+  return (attempt, error) => {
+    console.warn(`${action} failed (attempt ${attempt} of ${RETRY_ATTEMPTS}):`, error);
+    toast(`${action} failed. Retrying (${attempt + 1} of ${RETRY_ATTEMPTS})…`);
+  };
+}
+
+async function flushSaves() {
+  saving = true;
+  while (saveQueued) {
+    saveQueued = false;
+    try {
+      await retry(() => writeJson(LIBRARY_KEY, library.toJSON()), {
+        attempts: RETRY_ATTEMPTS,
+        onRetry: retryNotice('Saving'),
+      });
+    } catch (error) {
+      console.error(error);
+      toast(`Your changes could not be saved after ${RETRY_ATTEMPTS} attempts (${errorText(error)}). Export the workflow to keep a copy.`, 'error', { duration: 8000 });
+      break;
+    }
+  }
+  saving = false;
+}
 
 function persist() {
   if (!library) return;
   library.save(library.activeId, editor.graph);
-  writeJson(LIBRARY_KEY, library.toJSON());
+  saveQueued = true;
+  if (!saving) flushSaves();
 }
 
 function rememberSession() {
@@ -113,8 +142,12 @@ function applyImport(graph, label) {
 }
 
 async function fetchSample() {
-  const response = await fetch('samples/sample.json');
-  return importGraph(await response.text());
+  const text = await retry(async () => {
+    const response = await fetch('samples/sample.json', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`server answered ${response.status}`);
+    return response.text();
+  }, { attempts: RETRY_ATTEMPTS, onRetry: retryNotice('Loading the sample') });
+  return importGraph(text);
 }
 
 async function loadSample() {
@@ -122,8 +155,9 @@ async function loadSample() {
     const result = await fetchSample();
     if (result.ok) addWorkflow(result.graph, 'Opened the sample as "{name}"');
     else toast(result.errors[0], 'error');
-  } catch {
-    toast('Could not load the sample. Is the app running through npm start?', 'error');
+  } catch (error) {
+    console.error(error);
+    toast(`Could not load the sample after ${RETRY_ATTEMPTS} attempts (${errorText(error)}). Check your connection and try again.`, 'error', { duration: 8000 });
   }
 }
 
@@ -183,7 +217,14 @@ fileInput.addEventListener('change', async () => {
   const file = fileInput.files[0];
   fileInput.value = '';
   if (!file) return;
-  const text = await file.text();
+  let text;
+  try {
+    text = await retry(() => file.text(), { attempts: RETRY_ATTEMPTS, onRetry: retryNotice(`Reading ${file.name}`) });
+  } catch (error) {
+    console.error(error);
+    toast(`Could not read ${file.name} after ${RETRY_ATTEMPTS} attempts (${errorText(error)}). Try choosing the file again.`, 'error', { duration: 8000 });
+    return;
+  }
   const result = importGraph(text);
   if (result.ok) {
     addWorkflow(result.graph, `Imported ${file.name} as "{name}"`);
@@ -200,7 +241,11 @@ animateToggle.checked = prefs.animateFlow ?? !reducedMotion;
 svg.classList.toggle('animate-flow', animateToggle.checked);
 animateToggle.addEventListener('change', () => {
   svg.classList.toggle('animate-flow', animateToggle.checked);
-  writeJson(PREFS_KEY, { ...prefs, animateFlow: animateToggle.checked });
+  try {
+    writeJson(PREFS_KEY, { ...prefs, animateFlow: animateToggle.checked });
+  } catch (error) {
+    console.warn('Could not remember the animation setting:', error);
+  }
 });
 
 editor.subscribe((reason) => {
@@ -229,7 +274,9 @@ async function createLibrary() {
   try {
     const sample = await fetchSample();
     if (sample.ok) return WorkflowLibrary.fromGraphs([sample.graph]);
-  } catch {
+  } catch (error) {
+    console.error(error);
+    toast(`The sample workflow could not be loaded after ${RETRY_ATTEMPTS} attempts, so you are starting with an empty canvas.`, 'error', { duration: 8000 });
     return new WorkflowLibrary([]);
   }
   return new WorkflowLibrary([]);
@@ -251,5 +298,12 @@ async function boot() {
   });
   showWorkflow(library.activeId);
 }
+
+window.addEventListener('error', (event) => {
+  toast(`Something went wrong: ${event.message}. Reload the page if the editor stops responding.`, 'error', { duration: 8000 });
+});
+window.addEventListener('unhandledrejection', (event) => {
+  toast(`Something went wrong: ${errorText(event.reason)}.`, 'error', { duration: 8000 });
+});
 
 boot();

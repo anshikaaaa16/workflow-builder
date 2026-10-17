@@ -63,6 +63,18 @@ Validation checks:
 
 Problems don't block editing or exporting. Exporting a workflow with errors shows a reminder.
 
+### Error handling and retries
+
+Things that can fail for reasons outside the app are retried with `retry()` in `js/utils.js`: **up to 5 attempts**, waiting longer between each one (300 ms, 600 ms, 1.2 s, 2.4 s). This exponential backoff gives a brief network or storage hiccup time to clear.
+
+| Operation | What happens |
+|---|---|
+| Loading the sample workflow (network) | A short notice is shown for each retry. After 5 failures, an error says what went wrong and asks you to check your connection. On first start, the app opens an empty canvas instead. |
+| Reading an imported file | Retried the same way. After 5 failures, it asks you to choose the file again. |
+| Saving to `localStorage` | Retried in the background, so editing never waits for it. If it still fails (for example, storage is full), an error suggests exporting the workflow so nothing is lost. Saves never overlap: changes made during a retry are written right after it. |
+
+Invalid data is **not** retried, because retrying can't fix a broken file or an illegal connection. It's reported immediately with the reason. Any unexpected error is caught by a global handler and shown as a message instead of failing silently.
+
 Extras:
 - snap-to-grid, which you can turn off by holding **Alt** while dragging
 - pan and zoom

@@ -23,14 +23,14 @@ function h(tag, props = {}, ...children) {
 }
 
 export function createToaster(container) {
-  return function toast(message, kind = 'info') {
+  return function toast(message, kind = 'info', { duration = 3200 } = {}) {
     const el = h('div', { class: `toast toast-${kind}` }, message);
     container.append(el);
     while (container.children.length > 3) container.firstElementChild.remove();
     setTimeout(() => {
       el.classList.add('leaving');
       setTimeout(() => el.remove(), 300);
-    }, 3200);
+    }, duration);
   };
 }
 
